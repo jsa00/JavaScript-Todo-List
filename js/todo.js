@@ -235,7 +235,8 @@ const todo = {
     /**
      * 필터 버튼 표시 갱신
      * - filters의 조건 함수를 그대로 filter()에 넘겨서 필터마다 할 일 개수를 센다.
-     * - 현재 필터 버튼은 주황 배경으로 강조하고, aria-pressed로 선택 상태를 알려준다.
+     * - 현재 필터 버튼은 aria-pressed="true"로 표시한다.
+     *   주황 배경 강조는 index.html의 Tailwind aria-pressed:* 클래스가 맡아서 JS는 상태 값만 바꾼다.
      */
     renderFilters() { // 필터 버튼 선택 표시와 개수 갱신
         // { all: 3, active: 2, done: 1 } 형태의 필터별 개수
@@ -245,11 +246,8 @@ const todo = {
 
         document.querySelectorAll("#todo-filters [data-filter]").forEach(btn => {
             const { filter } = btn.dataset;
-            const isActive = filter === this.filter;
 
-            btn.setAttribute("aria-pressed", isActive);
-            btn.classList.toggle("bg-orange-400", isActive);
-            btn.classList.toggle("text-white", isActive);
+            btn.setAttribute("aria-pressed", filter === this.filter); // 화면 낭독기 선택 상태 + 강조 스타일 기준
             btn.querySelector("[data-count]").textContent = counts[filter] ?? 0;
         });
     },

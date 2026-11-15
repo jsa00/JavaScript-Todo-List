@@ -3,8 +3,12 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width,user-scalable=yes, initial-scale=1.0,minimum-scale=1.0,maximum-scale=2.0">
+        <!-- 기본 글꼴 Gamja Flower (Google Fonts). preconnect로 글꼴 서버에 미리 연결해 로딩을 앞당긴다. -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap">
         <link rel="stylesheet" type="text/css" href="css/style.css">
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
         <script src="js/todo.js"></script>
         <title>TODO 리스트</title>
     </head>
@@ -32,11 +36,11 @@
             <button type="submit" class="bg-lime-500 hover:bg-lime-700 py-2 px-5 rounded-sm text-white text-lg block mx-auto cursor-pointer max-w-xs w-1/2">등록하기</button>
         </form>
         
-        <!-- 할 일 조회 필터 (data-filter 값은 todo.filters의 이름과 같다) -->
+        <!-- 할 일 조회 필터 (data-filter 값은 todo.filters의 이름과 같다. 선택 표시는 aria-pressed:* 클래스가 맡는다.) -->
         <nav id="todo-filters" class="flex justify-center gap-2 mx-4 mt-6" aria-label="할 일 필터">
-            <button type="button" data-filter="all" aria-pressed="true" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">전체 <span data-count>0</span></button>
-            <button type="button" data-filter="active" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">진행 중 <span data-count>0</span></button>
-            <button type="button" data-filter="done" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">완료 <span data-count>0</span></button>
+            <button type="button" data-filter="all" aria-pressed="true" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer bg-white hover:bg-orange-100 aria-pressed:bg-orange-400 aria-pressed:text-white">전체 <span data-count>0</span></button>
+            <button type="button" data-filter="active" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer bg-white hover:bg-orange-100 aria-pressed:bg-orange-400 aria-pressed:text-white">진행 중 <span data-count>0</span></button>
+            <button type="button" data-filter="done" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer bg-white hover:bg-orange-100 aria-pressed:bg-orange-400 aria-pressed:text-white">완료 <span data-count>0</span></button>
         </nav>
 
         <ul id="todo-items" class="m-4 p-4 grid md:grid-cols-2 gap-4"> 
