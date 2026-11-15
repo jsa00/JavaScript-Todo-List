@@ -1,18 +1,32 @@
 /**
  * 할 일(Todo) 관리 객체
- * - 데이터: items 배열에 할 일 객체({ uid, date, title, content })를 담는다.
+ * - 데이터: items 배열에 할 일 객체({ uid, date, title, content, done })를 담는다.
  * - 저장소: localStorage의 "todos" 키에 JSON 문자열로 저장한다.
- * - 흐름: 데이터 변경(add/update/remove) → save()로 저장 → render()로 화면 다시 그리기
+ * - 흐름: 데이터 변경(add/update/remove/toggle) → save()로 저장 → render()로 화면 다시 그리기
  */
 const todo = {
     items: [], // 할 일 목록
     tpl: null, // 할 일 한 개를 그리는 HTML 템플릿 (처음 한 번만 읽어서 보관)
     editUid: null, // 수정 중인 할 일의 uid (null이면 등록 모드)
     cancelBtn: null, // 수정 모드에서만 나타나는 취소 버튼
+    filter: "all", // 현재 선택한 조회 필터 이름
+
+    /**
+     * 조회 필터 목록
+     * - match: filter()에 그대로 넘기는 조건 함수
+     * - empty: 조건에 맞는 할 일이 없을 때 보여줄 문구
+     * - 필터를 추가하려면 여기에 항목을 넣고 index.html에 같은 data-filter 버튼만 추가하면 된다.
+     */
+    filters: {
+        all: { match: () => true, empty: "오늘 해야 할 일은 무엇인가요?" },
+        active: { match: item => !item.done, empty: "진행 중인 할 일이 없어요." },
+        done: { match: item => item.done, empty: "완료한 할 일이 없어요." },
+    },
 
     /**
      * 할 일 등록
      * - uid는 등록 시각(Date.now())을 써서 항목마다 겹치지 않게 만든다.
+     * - 새 할 일은 미완료(done: false) 상태로 시작한다.
      * - 배열에 추가한 뒤 저장하고 목록을 다시 그린다.
      */
     add(date, title, content) { // 할 일 등록
@@ -21,7 +35,8 @@ const todo = {
             uid: Date.now(),
             date,
             title,
-            content
+            content,
+            done: false
         });
 
         this.save(); // 저장 처리
@@ -65,6 +80,32 @@ const todo = {
         this.save(); // 저장 처리
 
         this.render(); // 할 일 제거 후 화면 갱신
+    },
+
+    /**
+     * 완료 여부 전환
+     * - 체크박스를 누를 때마다 done 값을 true ↔ false로 뒤집는다.
+     * - 이전 버전에서 저장한 할 일은 done이 undefined라 미완료로 보이고, 처음 누르면 !undefined === true라서 완료로 바뀐다.
+     */
+    toggle(uid) { // 완료 여부 전환
+        const item = this.items.find(x => x.uid === Number(uid));
+        if (!item) return; // 없는 uid면 아무것도 하지 않는다.
+
+        item.done = !item.done;
+
+        this.save(); // 저장 처리
+        this.render(); // 완료 표시와 필터 개수 갱신
+    },
+
+    /**
+     * 조회 필터 변경
+     * - filters에 없는 이름이면 무시하고, 있으면 현재 필터를 바꾼 뒤 목록을 다시 그린다.
+     */
+    setFilter(name) { // 조회 필터 변경
+        if (!this.filters[name]) return;
+
+        this.filter = name;
+        this.render();
     },
 
     /**
@@ -176,45 +217,97 @@ const todo = {
 
     /**
      * 할 일 한 개를 HTML 문자열로 변환
-     * - 템플릿의 ${이름} 자리표시자를 찾아서 item의 같은 이름 속성 값으로 바꾼다.
+     * - 화면에만 필요한 값(checked, doneClass)을 원본 할 일에 더해 view 객체를 만든다.
+     * - 템플릿의 ${이름} 자리표시자를 찾아서 view의 같은 이름 속성 값으로 바꾼다.
      * - replace()에 콜백을 넘기면 자리표시자마다 콜백이 실행되고, 콜백이 돌려준 값으로 바뀐다.
      * - 속성이 늘어나도 템플릿에 ${이름}만 추가하면 되고, 모든 값은 escapeHtml()을 거친다.
      */
     renderItem(item) {
-        return this.getTpl().replace(/\$\{(\w+)\}/g, (_, key) => this.escapeHtml(item[key] ?? ""));
+        const view = {
+            ...item, // 원본 할 일 값 복사 (원본 객체는 바꾸지 않음)
+            checked: item.done ? "checked" : "", // 체크박스 체크 여부
+            doneClass: item.done ? "line-through text-gray-400" : "", // 완료한 할 일의 취소선 스타일
+        };
+
+        return this.getTpl().replace(/\$\{(\w+)\}/g, (_, key) => this.escapeHtml(view[key] ?? ""));
+    },
+
+    /**
+     * 필터 버튼 표시 갱신
+     * - filters의 조건 함수를 그대로 filter()에 넘겨서 필터마다 할 일 개수를 센다.
+     * - 현재 필터 버튼은 주황 배경으로 강조하고, aria-pressed로 선택 상태를 알려준다.
+     */
+    renderFilters() { // 필터 버튼 선택 표시와 개수 갱신
+        // { all: 3, active: 2, done: 1 } 형태의 필터별 개수
+        const counts = Object.fromEntries(
+            Object.entries(this.filters).map(([name, { match }]) => [name, this.items.filter(match).length])
+        );
+
+        document.querySelectorAll("#todo-filters [data-filter]").forEach(btn => {
+            const { filter } = btn.dataset;
+            const isActive = filter === this.filter;
+
+            btn.setAttribute("aria-pressed", isActive);
+            btn.classList.toggle("bg-orange-400", isActive);
+            btn.classList.toggle("text-white", isActive);
+            btn.querySelector("[data-count]").textContent = counts[filter] ?? 0;
+        });
     },
 
     /**
      * 할 일 목록 출력
      * 1. localStorage에서 목록을 읽어 items를 새로 채운다. (새로고침해도 목록 유지)
-     * 2. 목록이 비었으면 안내 문구만 보여준다.
-     * 3. map()으로 할 일 배열을 HTML 문자열 배열로 바꾸고 join("")으로 이어 붙인다.
-     * 4. 만든 HTML을 innerHTML로 한 번에 넣어 DOM 조작 횟수를 줄인다.
+     * 2. 필터 버튼의 선택 표시와 개수를 갱신한다.
+     * 3. 현재 필터의 조건 함수로 filter()해서 보여줄 할 일만 고른다.
+     * 4. 보여줄 할 일이 없으면 필터에 맞는 안내 문구만 보여준다.
+     * 5. map()으로 할 일 배열을 HTML 문자열 배열로 바꾸고 join("")으로 이어 붙인다.
+     * 6. 만든 HTML을 innerHTML로 한 번에 넣어 DOM 조작 횟수를 줄인다.
      */
     render() { // 할 일 목록 출력
         const tmp = localStorage.getItem("todos");
         this.items = typeof tmp === 'string' ? JSON.parse(tmp) : []; // 저장된 값이 없으면 null이라 빈 배열로 시작
         const targetEl = document.getElementById("todo-items");
 
-        if (this.items.length === 0) {
-            targetEl.innerHTML = "<li>오늘 해야 할 일은 무엇인가요?</li>";
+        this.renderFilters();
+
+        const { match, empty } = this.filters[this.filter];
+        const visibleItems = this.items.filter(match); // 현재 필터 조건에 맞는 할 일
+
+        if (visibleItems.length === 0) {
+            targetEl.innerHTML = `<li>${empty}</li>`;
             return;
         }
 
-        targetEl.innerHTML = this.items.map(item => this.renderItem(item)).join("");
+        targetEl.innerHTML = visibleItems.map(item => this.renderItem(item)).join("");
 
         // 목록을 다시 그린 뒤에도 수정 중인 항목 강조 유지
         this.updateFormMode();
     },
 
     /**
-     * 목록 버튼 클릭 이벤트 위임
-     * - 버튼마다 리스너를 붙이지 않고, 부모인 #todo-items에 리스너 하나만 등록한다.
+     * 목록·필터 이벤트 위임
+     * - 버튼마다 리스너를 붙이지 않고, 부모인 #todo-items와 #todo-filters에 리스너를 하나씩만 등록한다.
      * - 버튼 클릭은 이벤트 버블링으로 부모까지 올라오므로 부모에서 한꺼번에 처리할 수 있다.
      * - render()가 innerHTML로 버튼을 새로 만들어도 부모는 그대로라서 다시 등록할 필요가 없다.
      */
-    bindEvents() { // 목록 버튼 클릭 이벤트 위임
+    bindEvents() { // 목록·필터 이벤트 위임
         const targetEl = document.getElementById("todo-items");
+        const filtersEl = document.getElementById("todo-filters");
+
+        // 필터 버튼 클릭
+        filtersEl.addEventListener("click", (e) => {
+            const btn = e.target.closest("button[data-filter]"); // 버튼 안 개수(span)를 눌러도 버튼을 찾는다.
+            if (!btn) return;
+
+            this.setFilter(btn.dataset.filter);
+        });
+
+        // 완료 체크박스 변경 (체크 상태가 바뀔 때 발생하는 change 이벤트도 버블링된다.)
+        targetEl.addEventListener("change", (e) => {
+            if (!e.target.matches(".toggle-action")) return;
+
+            this.toggle(e.target.dataset.uid);
+        });
 
         targetEl.addEventListener("click", (e) => {
             // 버튼 안쪽 요소를 눌러도 가장 가까운 버튼을 찾는다.
@@ -238,7 +331,7 @@ const todo = {
 window.addEventListener("DOMContentLoaded", function() {
 
     todo.render(); // 최초 로딩 시 이미 등록된 할 일 목록을 출력
-    todo.bindEvents(); // 목록 버튼 클릭 이벤트는 최초 로딩 때 한 번만 등록
+    todo.bindEvents(); // 목록·필터 이벤트는 최초 로딩 때 한 번만 등록
 
     /**
      * 양식 제출 처리 (등록/수정 공용)

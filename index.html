@@ -32,13 +32,24 @@
             <button type="submit" class="bg-lime-500 hover:bg-lime-700 py-2 px-5 rounded-sm text-white text-lg block mx-auto cursor-pointer max-w-xs w-1/2">등록하기</button>
         </form>
         
+        <!-- 할 일 조회 필터 (data-filter 값은 todo.filters의 이름과 같다) -->
+        <nav id="todo-filters" class="flex justify-center gap-2 mx-4 mt-6" aria-label="할 일 필터">
+            <button type="button" data-filter="all" aria-pressed="true" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">전체 <span data-count>0</span></button>
+            <button type="button" data-filter="active" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">진행 중 <span data-count>0</span></button>
+            <button type="button" data-filter="done" aria-pressed="false" class="border border-orange-400 rounded-full px-4 py-1 cursor-pointer">완료 <span data-count>0</span></button>
+        </nav>
+
         <ul id="todo-items" class="m-4 p-4 grid md:grid-cols-2 gap-4"> 
         </ul>
 
         <script type="text/html" id="tpl">
             <li id="item-${uid}" class="border border-gray-400 rounded-sm group p-4">
-                <div class="group-hover:shadow-md">[${date}]${title}</div>
-                <div class="">${content}</div>
+                <label class="flex items-center gap-2 mb-1 cursor-pointer w-fit">
+                    <input type="checkbox" class="toggle-action w-4 h-4 cursor-pointer" data-uid="${uid}" ${checked}>
+                    <span class="text-sm text-gray-500">완료</span>
+                </label>
+                <div class="group-hover:shadow-md ${doneClass}">[${date}]${title}</div>
+                <div class="${doneClass}">${content}</div>
                 <div class="flex justify-between gap-1">
                     <button type="button" class="delete-action grow py-2 text-white bg-red-400 hover:bg-red-700 cursor-pointer" data-uid="${uid}">삭제</button>
                     <button type="button" class="edit-action grow py-2 text-white bg-cyan-500 hover:bg-cyan-700 cursor-pointer" data-uid="${uid}">수정</button>
