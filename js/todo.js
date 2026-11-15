@@ -135,12 +135,11 @@ const todo = {
 
         // 수정 중인 할 일 강조 표시
         // toggle(클래스, 조건)은 조건이 true면 클래스를 붙이고 false면 뗀다.
-        const lis = document.querySelectorAll("#todo-items > li");
-        for (const li of lis) {
+        document.querySelectorAll("#todo-items > li").forEach(li => {
             const isTarget = isEditing && li.id === `item-${this.editUid}`;
             li.classList.toggle("ring-2", isTarget);
             li.classList.toggle("ring-indigo-500", isTarget);
-        }
+        });
     },
 
     /**
@@ -165,10 +164,31 @@ const todo = {
     },
 
     /**
+     * HTML 특수문자 치환 (XSS 방지)
+     * - 사용자가 입력한 <script>, <img onerror=...> 같은 값이 innerHTML에서 태그로 실행되지 않게 한다.
+     * - & < > " ' 다섯 글자를 HTML 엔티티로 바꾸면 화면에는 글자 그대로 보인다.
+     * - 정규식 한 번으로 글자마다 대응하는 엔티티를 찾아 바꾸므로 &가 두 번 바뀌는 문제가 없다.
+     */
+    escapeHtml(value) {
+        const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+        return String(value).replace(/[&<>"']/g, ch => entities[ch]);
+    },
+
+    /**
+     * 할 일 한 개를 HTML 문자열로 변환
+     * - 템플릿의 ${이름} 자리표시자를 찾아서 item의 같은 이름 속성 값으로 바꾼다.
+     * - replace()에 콜백을 넘기면 자리표시자마다 콜백이 실행되고, 콜백이 돌려준 값으로 바뀐다.
+     * - 속성이 늘어나도 템플릿에 ${이름}만 추가하면 되고, 모든 값은 escapeHtml()을 거친다.
+     */
+    renderItem(item) {
+        return this.getTpl().replace(/\$\{(\w+)\}/g, (_, key) => this.escapeHtml(item[key] ?? ""));
+    },
+
+    /**
      * 할 일 목록 출력
      * 1. localStorage에서 목록을 읽어 items를 새로 채운다. (새로고침해도 목록 유지)
      * 2. 목록이 비었으면 안내 문구만 보여준다.
-     * 3. 항목마다 템플릿의 ${이름} 자리를 실제 값으로 바꿔 HTML 문자열을 만든다.
+     * 3. map()으로 할 일 배열을 HTML 문자열 배열로 바꾸고 join("")으로 이어 붙인다.
      * 4. 만든 HTML을 innerHTML로 한 번에 넣어 DOM 조작 횟수를 줄인다.
      */
     render() { // 할 일 목록 출력
@@ -181,20 +201,7 @@ const todo = {
             return;
         }
 
-
-        let html = "";
-        for (const {uid, date, title, content} of this.items) {
-            let tpl = this.getTpl();
-            // 정규식의 g 플래그로 같은 자리표시자가 여러 번 있어도 전부 바꾼다.
-            tpl = tpl.replace(/\$\{title\}/g, title)
-                    .replace(/\$\{content\}/g, content)
-                    .replace(/\$\{date\}/g, date)
-                    .replace(/\$\{uid\}/g, uid);
-
-            html += tpl;
-        }
-
-        targetEl.innerHTML = html;
+        targetEl.innerHTML = this.items.map(item => this.renderItem(item)).join("");
 
         // 목록을 다시 그린 뒤에도 수정 중인 항목 강조 유지
         this.updateFormMode();
@@ -249,16 +256,17 @@ window.addEventListener("DOMContentLoaded", function() {
             content: "할일 내용을 입력하세요.",
         };
         try {
-            // 공백만 입력한 경우도 trim()으로 걸러낸다.
-            for (const [key, msg] of Object.entries(requiredFields)) {
-                if (!frmTodo[key]?.value?.trim()) {
-                    throw new Error(msg);
-                }
+            // find()로 비어 있는 첫 번째 항목을 찾는다. 공백만 입력한 경우도 trim()으로 걸러낸다.
+            const emptyField = Object.entries(requiredFields)
+                .find(([key]) => !frmTodo[key]?.value?.trim());
+            if (emptyField) {
+                const [, msg] = emptyField; // [항목 이름, 메시지] 중 메시지
+                throw new Error(msg);
             }
 
-            const date = frmTodo.date.value.trim();
-            const title = frmTodo.title.value.trim();
-            const content = frmTodo.content.value.trim();
+            // map()으로 세 입력값을 앞뒤 공백 없이 한 번에 읽는다.
+            const [date, title, content] = Object.keys(requiredFields)
+                .map(key => frmTodo[key].value.trim());
 
             if (todo.editUid !== null) { // 수정 모드
                 todo.update(todo.editUid, date, title, content);
