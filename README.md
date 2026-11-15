@@ -11,7 +11,10 @@
 
 > 브라우저 전체 시연 영상 (1분 53초)
 
-[▶️ 시연 영상 보기 (docs/video/demo.mp4)](docs/video/demo.mp4)
+
+https://github.com/user-attachments/assets/a08f600c-d0ba-407c-b3d3-b25bfd54c757
+
+
 
 <br>
 
